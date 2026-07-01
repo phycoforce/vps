@@ -1,0 +1,87 @@
+---
+# Rootful podman quadlets: tailscale exit node + sing-box shadowsocks server.
+# Persistence is host bind mounts under /opt — no named volumes, no custom networks.
+
+- name: Tailscale state directory
+  ansible.builtin.file:
+    path: /opt/tailscale
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: sing-box config directory
+  ansible.builtin.file:
+    path: /opt/sing-box
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: sing-box configuration (contains shadowsocks PSK)
+  ansible.builtin.template:
+    src: sing-box-config.json.j2
+    dest: /opt/sing-box/config.json
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart sing-box
+
+- name: Tailscale environment file (contains TS_AUTHKEY — root only)
+  ansible.builtin.template:
+    src: tailscale-env.j2
+    dest: /etc/default/tailscale-container
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart tailscale
+
+- name: Tailscale quadlet
+  ansible.builtin.template:
+    src: tailscale.container.j2
+    dest: /etc/containers/systemd/tailscale.container
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd units
+    - Restart tailscale
+
+- name: sing-box quadlet
+  ansible.builtin.template:
+    src: sing-box.container.j2
+    dest: /etc/containers/systemd/sing-box.container
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd units
+    - Restart sing-box
+
+- name: IP forwarding for the Tailscale exit node
+  ansible.builtin.copy:
+    src: sysctl-99-tailscale.conf
+    dest: /etc/sysctl.d/99-tailscale.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctls (podman)
+
+- name: Enable podman services and auto-update timer
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+  loop:
+    - podman-auto-update.timer
+    - podman.socket
+
+- name: Apply podman changes before touching the firewall
+  ansible.builtin.meta: flush_handlers
+
+- name: Ensure container units are running
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: started
+  loop:
+    - tailscale.service
+    - sing-box.service

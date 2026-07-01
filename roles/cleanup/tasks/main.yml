@@ -1,0 +1,53 @@
+---
+# Retire the squid deployment (replaced by sing-box on 2026-06-30) and remove
+# stale credential material. Its config is archived in archive/squid/.
+
+- name: Remove squid quadlet
+  ansible.builtin.file:
+    path: /etc/containers/systemd/squid.container
+    state: absent
+  notify: Reload systemd units (cleanup)
+
+- name: Remove squid.service mask symlink
+  ansible.builtin.file:
+    path: /etc/systemd/system/squid.service
+    state: absent
+  notify: Reload systemd units (cleanup)
+
+- name: Remove leftover squid images
+  ansible.builtin.command: >-
+    podman rmi --ignore
+    docker.io/ubuntu/squid:5.2-22.04_beta
+    docker.io/ubuntu/squid:6.10-24.10_beta
+  register: squid_rmi
+  changed_when: squid_rmi.stdout | length > 0
+
+- name: Remove /opt/squid (config, htpasswd, cache, logs)
+  ansible.builtin.file:
+    path: /opt/squid
+    state: absent
+
+- name: Remove deprecated podman-1.x libpod.conf leftover
+  ansible.builtin.file:
+    path: /etc/containers/libpod.conf
+    state: absent
+
+- name: Remove apache2-utils (was only needed for squid's htpasswd)
+  ansible.builtin.apt:
+    name: apache2-utils
+    state: absent
+    purge: true
+
+- name: Remove inert ethtool GRO script (tailscale runs userspace netstack)
+  ansible.builtin.file:
+    path: /etc/networkd-dispatcher/routable.d/50-tailscale
+    state: absent
+
+- name: Scrub squid credentials from root's bash history
+  ansible.builtin.shell: |
+    if grep -q squidproxy /root/.bash_history 2>/dev/null; then
+      sed -i '/squidproxy/d' /root/.bash_history
+      echo scrubbed
+    fi
+  register: history_scrub
+  changed_when: "'scrubbed' in history_scrub.stdout"

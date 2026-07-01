@@ -1,0 +1,27 @@
+// Managed by Ansible (roles/updates). Applies everything from -security,
+// ESM (once attached) and -updates, restarts services as needed
+// (needrestart auto mode) and reboots at 04:00 when required.
+Unattended-Upgrade::Allowed-Origins {
+	"${distro_id}:${distro_codename}";
+	"${distro_id}:${distro_codename}-security";
+	"${distro_id}ESMApps:${distro_codename}-apps-security";
+	"${distro_id}ESM:${distro_codename}-infra-security";
+	"${distro_id}:${distro_codename}-updates";
+};
+
+Unattended-Upgrade::Package-Blacklist {
+};
+
+Unattended-Upgrade::DevRelease "auto";
+
+// Reboot automatically (even with users logged in) when a package requires it.
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";
+
+// Keep the disk clean: drop superseded kernels and now-unneeded dependencies.
+Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+Unattended-Upgrade::Remove-New-Unused-Dependencies "true";
+
+// Log actions to syslog/journal in addition to /var/log/unattended-upgrades/.
+Unattended-Upgrade::SyslogEnable "true";

@@ -1,0 +1,53 @@
+#cloud-config
+# Day-0 provisioning for a REBUILD of german-vps (Hetzner Cloud, Ubuntu 24.04 arm64/CAX).
+# Paste into the "Cloud config" / user data field when creating the server.
+#
+# NOTE: the original 2025 user-data tried to harden sshd with sed commands that
+# silently did nothing (they anchored on uncommented lines, but Ubuntu ships
+# PermitRootLogin/PasswordAuthentication commented out). This version uses
+# ssh_pwauth plus a proper sshd_config.d drop-in instead.
+#
+# After first boot:
+#   1. Update ansible_host in inventory.ini if the IP changed.
+#   2. Re-point the Hetzner Cloud firewall (22/tcp, 3128/tcp+udp) at the new server.
+#   3. Get a fresh Tailscale auth key (tag:container) into secrets/secrets.yml —
+#      or restore /opt/tailscale from backup to keep the node identity.
+#   4. Run: just apply
+#   5. Approve the exit node in the Tailscale admin console (fresh registrations only).
+
+users:
+  - name: root
+    lock_passwd: true
+  - name: aaron
+    groups: users, admin
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Mg+TFga/96tbbiMYsj/JMscDNl3N1aAVFQ3p827amq6C2gwE9DTKRofRxKJvGCXO4EuDMaFVgy3Myn52SgYPiIsa37m2wZrZWzCIFrf2eL1YVTrJnx2Qr0GKZPngc95mcAhvjxiQLkwMfRBMDj5n3A6dbIsupIyPhvtgB2v2YrFgdcjJcO37tGLZRcu8Ok5CMlpEW9KQJPGO5PX3sFZK5ybQon9bJDzsYUcYQMp/mnhA1+6CBvcQNOP2m8E4pi66Kg67olOZq0bPoZkoU98W+mwfPfPEUlK4zadX4uwOOyVoCBXBjIphK5+JD97tddhZIrsdALqxn7lDNsOucqD5 ssh-key-2023-12-26
+
+ssh_pwauth: false
+
+write_files:
+  # Same drop-in Ansible manages (roles/ssh/files/10-hardening.conf) — applied
+  # from the very first boot so the box is never exposed with defaults.
+  - path: /etc/ssh/sshd_config.d/10-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      AllowUsers aaron
+      X11Forwarding no
+      MaxAuthTries 4
+      LoginGraceTime 30
+      ClientAliveInterval 300
+      ClientAliveCountMax 3
+
+package_update: true
+package_upgrade: true
+
+power_state:
+  mode: reboot
+  condition: true

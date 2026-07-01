@@ -1,0 +1,20 @@
+[Unit]
+Description=sing-box shadowsocks-2022 exit node
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+ContainerName=sing-box
+Image={{ singbox_image }}
+Exec=run -c /etc/sing-box/config.json
+Volume=/opt/sing-box/config.json:/etc/sing-box/config.json:ro
+PublishPort={{ singbox_port }}:{{ singbox_port }}/tcp
+PublishPort={{ singbox_port }}:{{ singbox_port }}/udp
+AutoUpdate=registry
+
+[Service]
+Restart=always
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target

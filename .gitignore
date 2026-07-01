@@ -1,0 +1,3 @@
+# Live secrets — never committed. See secrets/secrets.yml.example
+secrets/secrets.yml
+*.retry

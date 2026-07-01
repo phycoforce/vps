@@ -1,0 +1,20 @@
+# RETIRED 2026-06-30: replaced by sing-box on the same port (3128).
+# Archived from /etc/containers/systemd/squid.container. To resurrect, also
+# restore squid.conf to /opt/squid/, create an htpasswd file at
+# /opt/squid/passwords (htpasswd -c, chown 13:13 the tree, chmod 600 passwords),
+# fix the cache_dir size (it was 55.5 GB on a 40 GB disk!), and free port 3128.
+[Container]
+ContainerName=squid
+Image=docker.io/ubuntu/squid:6.10-24.10_beta
+PublishPort=3128:3128
+Volume=/opt/squid/squid.conf:/etc/squid/squid.conf:ro
+Volume=/opt/squid/passwords:/etc/squid/passwords:ro
+Volume=/opt/squid/cache:/var/spool/squid
+Volume=/opt/squid/logs:/var/log/squid
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+# Non-secret configuration for german-vps (Hetzner CAX11, Ubuntu 24.04 arm64).
+# Secrets live in secrets/secrets.yml (gitignored) — see secrets/secrets.yml.example.
+
+vps_user: aaron
+
+# The single authorized SSH public key (public material, safe to commit).
+ssh_authorized_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Mg+TFga/96tbbiMYsj/JMscDNl3N1aAVFQ3p827amq6C2gwE9DTKRofRxKJvGCXO4EuDMaFVgy3Myn52SgYPiIsa37m2wZrZWzCIFrf2eL1YVTrJnx2Qr0GKZPngc95mcAhvjxiQLkwMfRBMDj5n3A6dbIsupIyPhvtgB2v2YrFgdcjJcO37tGLZRcu8Ok5CMlpEW9KQJPGO5PX3sFZK5ybQon9bJDzsYUcYQMp/mnhA1+6CBvcQNOP2m8E4pi66Kg67olOZq0bPoZkoU98W+mwfPfPEUlK4zadX4uwOOyVoCBXBjIphK5+JD97tddhZIrsdALqxn7lDNsOucqD5 ssh-key-2023-12-26"
+
+# Containers
+tailscale_image: ghcr.io/tailscale/tailscale:latest
+tailscale_hostname: german-vps
+singbox_image: ghcr.io/sagernet/sing-box:v1.13.14
+singbox_port: 3128
+
+# Rootful podman default bridge — DNAT target for published container ports.
+podman_subnet: 10.88.0.0/16
+
+# Swap
+swap_file: /swapfile
+swap_size_mb: 2048

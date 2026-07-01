@@ -1,0 +1,64 @@
+---
+- name: APT periodic settings (daily list update + unattended upgrade)
+  ansible.builtin.copy:
+    src: 20auto-upgrades
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Unattended-upgrades policy
+  ansible.builtin.copy:
+    src: 50unattended-upgrades
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable apt timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+
+# ---- Ubuntu Pro / ESM ----
+- name: Check Ubuntu Pro attachment
+  ansible.builtin.command: pro api u.pro.status.is_attached.v1
+  register: pro_attached_raw
+  changed_when: false
+
+- name: Parse attachment state
+  ansible.builtin.set_fact:
+    pro_attached: "{{ (pro_attached_raw.stdout | from_json).data.attributes.is_attached }}"
+
+- name: Attach Ubuntu Pro
+  ansible.builtin.command: pro attach {{ ubuntu_pro_token }}
+  when:
+    - ubuntu_pro_token | length > 0
+    - not pro_attached
+  no_log: true
+  register: pro_attach_result
+
+- name: Enable ESM services
+  ansible.builtin.command: pro enable {{ item }} --assume-yes
+  loop:
+    - esm-infra
+    - esm-apps
+  when: pro_attached or (pro_attach_result is defined and pro_attach_result is changed)
+  register: esm_enable
+  changed_when: >-
+    esm_enable.rc == 0 and
+    'already enabled' not in (esm_enable.stdout | default('') + esm_enable.stderr | default(''))
+  failed_when:
+    - esm_enable.rc != 0
+    - "'already enabled' not in (esm_enable.stdout | default('') + esm_enable.stderr | default(''))"
+
+- name: Note when Pro is skipped
+  ansible.builtin.debug:
+    msg: "Ubuntu Pro not attached and no token provided — ESM disabled. Add ubuntu_pro_token to secrets/secrets.yml."
+  when:
+    - not pro_attached
+    - ubuntu_pro_token | length == 0

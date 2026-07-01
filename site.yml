@@ -1,0 +1,28 @@
+---
+# Full configuration of german-vps. Idempotent — safe to re-run any time.
+#   nix shell nixpkgs#ansible --command ansible-playbook site.yml
+# or: make apply
+- name: Configure and harden german-vps
+  hosts: vps
+  become: true
+  vars_files:
+    - secrets/secrets.yml
+
+  pre_tasks:
+    - name: Ensure secrets are present
+      ansible.builtin.assert:
+        that:
+          - tailscale_authkey is defined and tailscale_authkey | length > 0
+          - shadowsocks_psk is defined and shadowsocks_psk | length > 0
+          - ubuntu_pro_token is defined
+        fail_msg: >-
+          secrets/secrets.yml is missing or incomplete.
+          Copy secrets/secrets.yml.example and fill it in.
+
+  roles:
+    - base      # packages, NTP, needrestart, swap, sysctl hardening
+    - updates   # unattended-upgrades, Ubuntu Pro / ESM
+    - ssh       # sshd hardening drop-in, key management
+    - podman    # quadlets, /opt payloads, auto-update timers
+    - firewall  # ufw (host firewall) + fail2ban
+    - cleanup   # retire squid leftovers, scrub stale credentials

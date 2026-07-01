@@ -1,0 +1,145 @@
+---
+# Host firewall (ufw) as defense in depth under the Hetzner Cloud firewall,
+# plus fail2ban against the constant SSH brute-force.
+#
+# podman interplay: published container ports (3128) are DNATed in PREROUTING
+# and traverse the FORWARD chain, so they need `route allow` rules, not just
+# INPUT allows. `ufw enable` (and any manual `ufw reload`!) flushes netavark's
+# FORWARD plumbing, so we always finish with `podman network reload --all`.
+
+- name: fail2ban sshd jail
+  ansible.builtin.copy:
+    src: fail2ban-vps.local
+    dest: /etc/fail2ban/jail.d/vps.local
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable fail2ban at boot
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    enabled: true
+
+# ---- ufw rules are added while inactive; enable comes last ----
+- name: Default deny incoming
+  community.general.ufw:
+    default: deny
+    direction: incoming
+
+- name: Default allow outgoing
+  community.general.ufw:
+    default: allow
+    direction: outgoing
+
+- name: Default deny routed
+  community.general.ufw:
+    default: deny
+    direction: routed
+
+- name: Allow SSH, rate-limited
+  community.general.ufw:
+    rule: limit
+    port: "22"
+    proto: tcp
+    comment: SSH (rate limited; fail2ban bans repeat offenders)
+
+# Defense in depth only: external 3128 traffic is DNATed in PREROUTING and
+# never reaches INPUT. This keeps `ufw status` self-documenting and covers a
+# future host-level listener on the port.
+- name: Allow sing-box inbound
+  community.general.ufw:
+    rule: allow
+    port: "{{ singbox_port }}"
+    proto: "{{ item }}"
+    comment: sing-box shadowsocks-2022
+  loop:
+    - tcp
+    - udp
+
+- name: Allow forwarded traffic to the sing-box container (podman DNAT)
+  community.general.ufw:
+    rule: allow
+    route: true
+    proto: "{{ item }}"
+    to_ip: "{{ podman_subnet }}"
+    to_port: "{{ singbox_port }}"
+    comment: DNAT path into podman bridge for sing-box
+  loop:
+    - tcp
+    - udp
+
+# Container egress would otherwise fall through ufw's chains to netavark's
+# blanket ACCEPT — accepted anyway, but logged as misleading [UFW BLOCK].
+# Accept it explicitly instead.
+- name: Allow forwarded traffic from the podman bridge (container egress)
+  community.general.ufw:
+    rule: allow
+    route: true
+    from_ip: "{{ podman_subnet }}"
+    comment: container egress (sing-box upstream connections)
+
+- name: Enable ufw logging (low)
+  community.general.ufw:
+    logging: "low"
+
+- name: Check whether ufw is currently active
+  ansible.builtin.command: ufw status
+  register: ufw_status
+  changed_when: false
+
+# Belt and braces: if enabling the firewall severs SSH, this transient timer
+# disables it again (and restores container networking) after 4 minutes.
+# Clean up any leftover guard first — a fired or interrupted guard from a
+# previous run would otherwise fail systemd-run (unit already loaded) or
+# silently disable ufw mid-run.
+- name: Clear any leftover rollback guard
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - systemctl stop ufw-rollback-guard.timer ufw-rollback-guard.service
+    - systemctl reset-failed ufw-rollback-guard.timer ufw-rollback-guard.service
+  failed_when: false
+  changed_when: false
+
+- name: Arm rollback guard before first enable
+  ansible.builtin.command: >-
+    systemd-run --unit=ufw-rollback-guard --on-active=240
+    /bin/sh -c '/usr/sbin/ufw --force disable; /usr/bin/podman network reload --all'
+  when: "'Status: inactive' in ufw_status.stdout"
+
+- name: Enable ufw
+  community.general.ufw:
+    state: enabled
+
+- name: Re-establish the SSH connection through the new firewall
+  ansible.builtin.meta: reset_connection
+
+- name: Confirm we still have access
+  ansible.builtin.ping:
+
+- name: Disarm rollback guard
+  ansible.builtin.command: systemctl stop ufw-rollback-guard.timer ufw-rollback-guard.service
+  failed_when: false
+  changed_when: false
+
+- name: Assert the firewall survived (guard must not have fired)
+  ansible.builtin.command: ufw status
+  register: ufw_status_after
+  changed_when: false
+  failed_when: "'Status: active' not in ufw_status_after.stdout"
+
+# `ufw enable` flushed the filter table, taking netavark's FORWARD rules and
+# fail2ban's f2b-* chains with it. Restore both. Idempotent and cheap, so run
+# them every time — this also heals an interrupted previous run.
+- name: Restore podman's netavark FORWARD rules
+  ansible.builtin.command: podman network reload --all
+  changed_when: false
+
+- name: Restart fail2ban to re-create its chains
+  ansible.builtin.systemd_service:
+    name: fail2ban
+    state: restarted
+
+- name: Ensure ufw service is enabled at boot
+  ansible.builtin.systemd_service:
+    name: ufw
+    enabled: true

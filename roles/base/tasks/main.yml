@@ -1,0 +1,93 @@
+---
+- name: Install required packages
+  ansible.builtin.apt:
+    name:
+      - podman
+      - ufw
+      - fail2ban
+      - python3-systemd # fail2ban systemd journal backend
+      - unattended-upgrades
+      - needrestart
+      - ubuntu-pro-client
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create timesyncd drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/timesyncd.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Use Hetzner NTP
+  ansible.builtin.copy:
+    src: timesyncd-hetzner.conf
+    dest: /etc/systemd/timesyncd.conf.d/hetzner.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart timesyncd
+
+- name: Auto-restart services after library upgrades (needrestart)
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible. Restart outdated services automatically —
+      # this box is unattended; interactive prompts would stall upgrades.
+      $nrconf{restart} = 'a';
+    dest: /etc/needrestart/conf.d/50-autorestart.conf
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Kernel/network hardening sysctls
+  ansible.builtin.copy:
+    src: sysctl-99-hardening.conf
+    dest: /etc/sysctl.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Apply sysctls
+
+# ---- swap (2 GB file; box has 4 GB RAM, squid was once OOM-killed) ----
+- name: Create swap file
+  ansible.builtin.command:
+    cmd: dd if=/dev/zero of={{ swap_file }} bs=1M count={{ swap_size_mb }}
+    creates: "{{ swap_file }}"
+
+- name: Swap file permissions
+  ansible.builtin.file:
+    path: "{{ swap_file }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+# Gate on the on-disk signature, not the dd task's changed state — a crashed
+# earlier run must be repaired, not wedged.
+- name: Check swap file signature
+  ansible.builtin.command: blkid -o value -s TYPE {{ swap_file }}
+  register: swap_sig
+  failed_when: false
+  changed_when: false
+
+- name: Format swap file
+  ansible.builtin.command: mkswap {{ swap_file }}
+  when: swap_sig.stdout != 'swap'
+
+- name: Register swap in fstab
+  ansible.posix.mount:
+    src: "{{ swap_file }}"
+    path: none
+    fstype: swap
+    opts: sw
+    state: present
+
+- name: Check active swap
+  ansible.builtin.command: swapon --show=NAME --noheadings
+  register: active_swap
+  changed_when: false
+
+- name: Activate swap
+  ansible.builtin.command: swapon {{ swap_file }}
+  when: swap_file not in active_swap.stdout_lines

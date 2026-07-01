@@ -1,0 +1,14 @@
+# Managed by Ansible (roles/firewall).
+# ~10k failed SSH attempts/day hit this box; auth is key-only so legitimate
+# logins never trip the jail.
+
+[DEFAULT]
+backend = systemd
+bantime = 1h
+bantime.increment = true
+bantime.maxtime = 1w
+findtime = 10m
+maxretry = 4
+
+[sshd]
+enabled = true

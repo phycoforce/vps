@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+[Unit]
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image={{ tailscale_image }}
+# TS_AUTHKEY lives in a root-only env file, not inline (it was previously
+# world-readable here). TS_AUTH_ONCE=true means it is only used when the
+# state in /opt/tailscale needs a login — so the key can be rotated or
+# expire without restarts crash-looping the exit node.
+EnvironmentFile=/etc/default/tailscale-container
+Environment=TS_AUTH_ONCE=true
+Environment=TS_STATE_DIR=/var/lib/tailscale
+Environment=TS_USERSPACE=true
+Environment=TS_EXTRA_ARGS="--advertise-tags=tag:container --accept-routes --advertise-exit-node"
+Volume=/opt/tailscale:/var/lib/tailscale
+Network=host
+HostName={{ tailscale_hostname }}
+AutoUpdate=registry
+
+[Service]
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

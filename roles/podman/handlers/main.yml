@@ -1,0 +1,18 @@
+---
+# Order matters: quadlet edits need a daemon-reload before the unit restarts.
+- name: Reload systemd units
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+
+- name: Restart tailscale
+  ansible.builtin.systemd_service:
+    name: tailscale.service
+    state: restarted
+
+- name: Restart sing-box
+  ansible.builtin.systemd_service:
+    name: sing-box.service
+    state: restarted
+
+- name: Apply sysctls (podman)
+  ansible.builtin.command: sysctl --system
