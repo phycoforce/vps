@@ -1,0 +1,39 @@
+# Linguist language overrides — https://github.com/github-linguist/linguist
+#
+# This is an Ansible repository. By default Linguist reports it as generic
+# "YAML", so the playbooks/roles are explicitly tagged as Ansible and the
+# templates, configs and helper scripts are pointed at their real languages.
+
+# --- Ansible playbooks, roles and vars ---------------------------------------
+*.yml            linguist-language=Ansible
+site.yml         linguist-language=Ansible
+
+# Plain YAML (not Ansible) -----------------------------------------------------
+cloud-init/*.yaml    linguist-language=YAML
+secrets/*.example    linguist-language=YAML
+
+# --- Jinja2 templates --------------------------------------------------------
+# The final extension (.j2) wins even for *.json.j2 / *-env.j2 files.
+*.j2             linguist-language=Jinja
+
+# --- Justfile ----------------------------------------------------------------
+justfile         linguist-language=Just
+
+# --- Shell scripts -----------------------------------------------------------
+*.sh             linguist-language=Shell
+
+# --- INI / systemd-style configuration ---------------------------------------
+ansible.cfg      linguist-language=INI
+*.conf           linguist-language=INI
+*.container      linguist-language=INI
+*.local          linguist-language=INI
+
+# --- APT unattended-upgrades config (dpkg config syntax, no extension) --------
+roles/updates/files/20auto-upgrades       linguist-language=INI
+roles/updates/files/50unattended-upgrades linguist-language=INI
+
+# --- Archived / reference material — keep out of language statistics ----------
+archive/**       linguist-vendored
+
+# --- Documentation -----------------------------------------------------------
+README.md        linguist-documentation
