@@ -13,7 +13,7 @@
 #      primary IPs were reused (tofu output server_ipv4 shows the live one).
 #   2. Get a fresh Tailscale auth key (tag:container) into secrets/secrets.yml —
 #      or restore /opt/tailscale from backup to keep the node identity.
-#   3. Run: just apply
+#   3. Run: just ansible apply
 #   4. Approve the exit node in the Tailscale admin console (fresh registrations only).
 
 users:

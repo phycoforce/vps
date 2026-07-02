@@ -26,10 +26,10 @@ archive/     retired configs kept for reference
 ```sh
 cp secrets/secrets.yml.example secrets/secrets.yml     # first time; fill in, chmod 600
 cp secrets/hcloud-token.example secrets/hcloud-token   # first time; Hetzner API token, chmod 600
-just syntax                         # lint the playbook
-just check                          # dry run
-just apply                          # converge the server (idempotent, re-run any time)
-just verify                         # post-apply health checks (plain ssh, no ansible)
+just ansible syntax   # lint the playbook
+just ansible check    # dry run
+just ansible apply    # converge the server (idempotent, re-run any time)
+just verify           # post-apply health checks (plain ssh, no ansible)
 ```
 
 Ansible is provided ad hoc through nix (`nix shell nixpkgs#ansible`); nothing
@@ -45,8 +45,8 @@ them as adopted; nothing was recreated). Ansible remains the config layer
 *inside* the box; OpenTofu owns everything *around* it.
 
 ```sh
-just tf-plan              # preview infra drift/changes
-just tf-apply             # apply them
+just tf plan              # preview infra drift/changes
+just tf apply             # apply them
 ```
 
 The API token is read from `secrets/hcloud-token` (gitignored, chmod 600 —
@@ -109,14 +109,14 @@ Gotchas baked into the config:
 
 1. Recreate through OpenTofu. (If this is an intentional rebuild rather than
    a dead box, first set `delete_protection`/`rebuild_protection` to `false`
-   and `tf-apply` before deleting anything.) The primary IPs survive the box
+   and `just tf apply` before deleting anything.) The primary IPs survive the box
    (`auto_delete=false` + delete protection), so only the server is replaced:
    `tofu state rm hcloud_server.vps`, delete its stale `import` block from
    `imports.tf`, and add a `public_net` block to the server resource
    referencing `hcloud_primary_ip.ipv4.id` / `hcloud_primary_ip.ipv6.id` —
    safe here because it applies at create time; the hazard documented in
    `main.tf` only concerns adding the block to a live adopted server. Then
-   `just tf-apply` — the replacement comes up on the **same addresses**, with
+   `just tf apply` — the replacement comes up on the **same addresses**, with
    server type, image, location, firewall attachment, SSH key and
    `cloud-init/user-data.yaml` all from `terraform/main.tf`. If the create
    fails because cax11 is sold out (it often is), bump `server_type` to
@@ -126,7 +126,7 @@ Gotchas baked into the config:
 3. Secrets: new Tailscale auth key (tag:container) in `secrets/secrets.yml`
    (or restore `/opt/tailscale` to keep the node identity); keep the same
    `shadowsocks_psk` so clients continue to work.
-4. `just apply && just verify`.
+4. `just ansible apply && just verify`.
 5. Fresh Tailscale registrations: approve the exit node in the admin console.
 
 ## Security posture notes

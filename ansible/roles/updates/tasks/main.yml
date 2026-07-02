@@ -29,6 +29,7 @@
   ansible.builtin.command: pro api u.pro.status.is_attached.v1
   register: pro_attached_raw
   changed_when: false
+  check_mode: false # read-only probe; --check would leave stdout empty and break the parse below
 
 - name: Parse attachment state
   ansible.builtin.set_fact:

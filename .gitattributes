@@ -22,7 +22,8 @@ secrets/hcloud-token.example linguist-language=Text
 terraform/.terraform.lock.hcl linguist-generated
 
 # --- Justfile ----------------------------------------------------------------
-justfile         linguist-language=Just
+.justfile        linguist-language=Just
+mod.just         linguist-language=Just
 
 # --- Shell scripts -----------------------------------------------------------
 *.sh             linguist-language=Shell

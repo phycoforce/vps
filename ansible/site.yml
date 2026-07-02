@@ -1,6 +1,6 @@
 ---
 # Full configuration of german-vps. Idempotent — safe to re-run any time.
-#   just apply   (or, from ansible/: nix shell nixpkgs#ansible --command ansible-playbook site.yml)
+#   just ansible apply   (or, from ansible/: nix shell nixpkgs#ansible --command ansible-playbook site.yml)
 - name: Configure and harden german-vps
   hosts: vps
   become: true
