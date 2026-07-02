@@ -11,10 +11,15 @@ site.yml         linguist-language=Ansible
 # Plain YAML (not Ansible) -----------------------------------------------------
 cloud-init/*.yaml    linguist-language=YAML
 secrets/*.example    linguist-language=YAML
+secrets/hcloud-token.example linguist-language=Text
 
 # --- Jinja2 templates --------------------------------------------------------
 # The final extension (.j2) wins even for *.json.j2 / *-env.j2 files.
 *.j2             linguist-language=Jinja
+
+# --- OpenTofu ----------------------------------------------------------------
+*.tf             linguist-language=HCL
+terraform/.terraform.lock.hcl linguist-generated
 
 # --- Justfile ----------------------------------------------------------------
 justfile         linguist-language=Just
@@ -29,8 +34,8 @@ ansible.cfg      linguist-language=INI
 *.local          linguist-language=INI
 
 # --- APT unattended-upgrades config (dpkg config syntax, no extension) --------
-roles/updates/files/20auto-upgrades       linguist-language=INI
-roles/updates/files/50unattended-upgrades linguist-language=INI
+ansible/roles/updates/files/20auto-upgrades       linguist-language=INI
+ansible/roles/updates/files/50unattended-upgrades linguist-language=INI
 
 # --- Archived / reference material — keep out of language statistics ----------
 archive/**       linguist-vendored

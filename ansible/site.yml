@@ -1,12 +1,11 @@
 ---
 # Full configuration of german-vps. Idempotent — safe to re-run any time.
-#   nix shell nixpkgs#ansible --command ansible-playbook site.yml
-# or: make apply
+#   just apply   (or, from ansible/: nix shell nixpkgs#ansible --command ansible-playbook site.yml)
 - name: Configure and harden german-vps
   hosts: vps
   become: true
   vars_files:
-    - secrets/secrets.yml
+    - ../secrets/secrets.yml
 
   pre_tasks:
     - name: Ensure secrets are present

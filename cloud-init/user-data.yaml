@@ -1,19 +1,20 @@
 #cloud-config
 # Day-0 provisioning for a REBUILD of german-vps (Hetzner Cloud, Ubuntu 24.04 arm64/CAX).
-# Paste into the "Cloud config" / user data field when creating the server.
+# Consumed automatically by terraform/main.tf (user_data) when tofu creates the
+# server — no need to paste it into the console. See README "Rebuild from scratch".
 #
 # NOTE: the original 2025 user-data tried to harden sshd with sed commands that
 # silently did nothing (they anchored on uncommented lines, but Ubuntu ships
 # PermitRootLogin/PasswordAuthentication commented out). This version uses
 # ssh_pwauth plus a proper sshd_config.d drop-in instead.
 #
-# After first boot:
-#   1. Update ansible_host in inventory.ini if the IP changed.
-#   2. Re-point the Hetzner Cloud firewall (22/tcp, 3128/tcp+udp) at the new server.
-#   3. Get a fresh Tailscale auth key (tag:container) into secrets/secrets.yml —
+# After first boot (tofu attaches the firewall and SSH key itself):
+#   1. Check ansible_host in ansible/inventory.ini — unchanged when the
+#      primary IPs were reused (tofu output server_ipv4 shows the live one).
+#   2. Get a fresh Tailscale auth key (tag:container) into secrets/secrets.yml —
 #      or restore /opt/tailscale from backup to keep the node identity.
-#   4. Run: just apply
-#   5. Approve the exit node in the Tailscale admin console (fresh registrations only).
+#   3. Run: just apply
+#   4. Approve the exit node in the Tailscale admin console (fresh registrations only).
 
 users:
   - name: root
@@ -29,7 +30,7 @@ users:
 ssh_pwauth: false
 
 write_files:
-  # Same drop-in Ansible manages (roles/ssh/files/10-hardening.conf) — applied
+  # Same drop-in Ansible manages (ansible/roles/ssh/files/10-hardening.conf) — applied
   # from the very first boot so the box is never exposed with defaults.
   - path: /etc/ssh/sshd_config.d/10-hardening.conf
     permissions: "0644"

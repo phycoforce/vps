@@ -1,3 +1,13 @@
-# Live secrets — never committed. See secrets/secrets.yml.example
-secrets/secrets.yml
+# Live secrets — never committed. See the *.example files in secrets/
+secrets/*
+!secrets/*.example
 *.retry
+
+# OpenTofu — local state and working dir stay out of git
+# (.terraform.lock.hcl IS committed; token lives in gitignored secrets/hcloud-token)
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+terraform/*.tfplan
+terraform/crash.log
